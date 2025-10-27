@@ -115,13 +115,19 @@ Metabase дашборд может включать:
 ## Скриншоты проекта
 <div align="center">
   <strong>Редактирование соединения в Airflow UI</strong><br>
-  <img src="assets/airflow_ui_conn.png" alt="Редактирование соединения в Airflow UI" width="60%">
+  <img src="assets/airflow_ui_conn.png" alt="Редактирование соединения в Airflow UI" width="70%">
+
+  <strong>Добавление переменной в Airflow UI</strong><br>
+  <img src="assets/airflow_ui_vars.png" alt="Добавление переменной в Airflow UI" width="70%">
+
+  <strong>Лог задачи в Airflow UI</strong><br>
+  <img src="assets/airflow_ui_logs.png" alt="Лог задачи в Airflow UI" width="70%">
     
   <strong>Пример дашборда (стр. 1)</strong><br>
-  <img src="assets/dashboard_1.png" alt="Основной дашборд" width="60%">
+  <img src="assets/dashboard_1.png" alt="Основной дашборд" width="70%">
     
   <strong>Пример дашборда (стр. 2)</strong><br>
-  <img src="assets/dashboard_2.png" alt="Основной дашборд" width="60%">
+  <img src="assets/dashboard_2.png" alt="Основной дашборд" width="70%">
 </div>
 
 ## Лицензия
@@ -132,5 +138,6 @@ Metabase дашборд может включать:
 * [Metabase Documentation](https://www.metabase.com/docs/latest/)
 * [Docker Documentation](https://docs.docker.com/get-started/)
   
+
 
 
