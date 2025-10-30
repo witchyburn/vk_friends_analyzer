@@ -1,4 +1,4 @@
-from vkapi import VKApi
+from vkapi import VKApi, VKApiError
 from telegram import send_alert
 from os import environ
 import datetime
@@ -15,20 +15,26 @@ logging.basicConfig(
 # 1. Получение идентификаторов публичных пользователей, входящих в состав подписок пользователя
 
 def get_user_subscriptions(access_token: str, user_id: str) -> list[int]:
-    vk = VKApi(access_token=access_token)
-    resp = vk.get_subscriptions(user_id=user_id)
-    result = resp['response']['users']['items']
-    logging.info(f'Количество публичных аккаунтов, на которые у меня есть подписка: {len(result)}.')
-    return result
+    try:
+        vk = VKApi(access_token=access_token)
+        resp = vk.get_subscriptions(user_id=user_id)
+        result = resp['response']['users']['items']
+        logging.info(f'Количество публичных аккаунтов, на которые у меня есть подписка: {len(result)}.')
+        return result
+    except VKApiError as e:
+        logging.error(f'{e}')
 
 
 # 2. Получение информации об отправленных заявках на добавление в друзья для текущего пользователя
 
 def get_user_requests(access_token: str) -> list[int]:
-    vk = VKApi(access_token=access_token)
-    resp = vk.get_outcoming_requests()
-    result = resp['response']['items']
-    return result
+    try:
+        vk = VKApi(access_token=access_token)
+        resp = vk.get_outcoming_requests()
+        result = resp['response']['items']
+        return result
+    except VKApiError as e:
+        logging.error(f'{e}')
 
 
 # 3. Мониторинг появления исходящих заявок в друзья к пользователям -
@@ -54,17 +60,19 @@ def info_outcoming_requests(access_token: str,
     if user_ids:
         logging.info(f'Количество исходящих заявок на добавление в друзья: {len(user_ids)}')
         vk = VKApi(access_token=access_token)
-        for user in user_ids:
-            info = vk.get_user_info(user_ids=user, fields='last_seen,last_name_gen,first_name_gen')['response'][0]
-            
-            name, last_name = info['first_name_gen'], info['last_name_gen']
-            platform, time = info['last_seen']['platform'], info['last_seen']['time']
-            time = datetime.datetime.fromtimestamp(time)
+        try:
+            for user in user_ids:
+                info = vk.get_user_info(user_ids=user, fields='last_seen,last_name_gen,first_name_gen')['response'][0]
+                
+                name, last_name = info['first_name_gen'], info['last_name_gen']
+                platform, time = info['last_seen']['platform'], info['last_seen']['time']
+                time = datetime.datetime.fromtimestamp(time)
 
-            msg = f'Либо вы ожидаете одобрения исходящей заявки от {name} {last_name}, либо данный пользователь удалил(а) Вас из друзей.\n\
-Последний визит {name} - {time}, с платформы - {platforms[platform]}.'
-            logging.info(msg)
-            send_alert(msg, tg_bot_token, tg_channel_id)
-
+                msg = f'Либо вы ожидаете одобрения исходящей заявки от {name} {last_name}, либо данный пользователь удалил(а) Вас из друзей.\n\
+    Последний визит {name} - {time}, с платформы - {platforms[platform]}.'
+                logging.info(msg)
+                send_alert(msg, tg_bot_token, tg_channel_id)
+        except VKApiError as e:
+            logging.error(f'{e}')
     else:
         logging.info('Исходящие заявки на добавление в друзья отсутствуют.')
