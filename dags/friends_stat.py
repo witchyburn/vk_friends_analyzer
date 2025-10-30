@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import datetime
 import math
-from vkapi import VKApi
+from vkapi import VKApi, VKApiError
 from os import environ
 import logging
 
@@ -20,33 +20,36 @@ logging.basicConfig(
 def get_general_info(access_token: str, user_id: str) -> tuple[list]:
 
     vk = VKApi(access_token=access_token)
-    res = vk.get_user_friends_info(user_id=user_id)
-    result = res['response']['items']
+    try:
+        res = vk.get_user_friends_info(user_id=user_id)
+        result = res['response']['items']
+    except VKApiError as e:
+        logging.error(f'{e}')
+    else:
+        friends_general = []
+        deletion_candidates = []
 
-    friends_general = []
-    deletion_candidates = []
+        for friend in result:
+            data = {}
+            data['user_id'] = friend['id']
+            data['sex'] = friend['sex']
+            data['first_name'] = friend['first_name']
+            data['last_name'] = friend['last_name']
 
-    for friend in result:
-        data = {}
-        data['user_id'] = friend['id']
-        data['sex'] = friend['sex']
-        data['first_name'] = friend['first_name']
-        data['last_name'] = friend['last_name']
+            if 'deactivated' in friend:
+                data['deactivated'] = friend['deactivated']
+                deletion_candidates.append(data)
+            else: 
+                data['birth_dt'] = friend.get('bdate', None)
+                data['city'] = friend.get('city', {}).get('title', None)
+                uni_str = friend.get('university_name', None)
+                data['university'] = uni_str if uni_str != '' else None
+                data['last_seen'] = friend.get('last_seen', {}).get('time', None)
+                friends_general.append(data)
 
-        if 'deactivated' in friend:
-            data['deactivated'] = friend['deactivated']
-            deletion_candidates.append(data)
-        else: 
-            data['birth_dt'] = friend.get('bdate', None)
-            data['city'] = friend.get('city', {}).get('title', None)
-            uni_str = friend.get('university_name', None)
-            data['university'] = uni_str if uni_str != '' else None
-            data['last_seen'] = friend.get('last_seen', {}).get('time', None)
-            friends_general.append(data)
-
-    logging.info(f'Получена общая информация о друзьях юзера id{user_id}. Число записей: {len(friends_general)} штук')
-    logging.info(f'Деактивированных пользователей среди друзей: {len(deletion_candidates)} штук')
-    
+        logging.info(f'Получена общая информация о друзьях юзера id{user_id}. Число записей: {len(friends_general)} штук')
+        logging.info(f'Деактивированных пользователей среди друзей: {len(deletion_candidates)} штук')
+        
     return friends_general, deletion_candidates
 
 
@@ -59,25 +62,16 @@ def delete_deactivated_friends(access_token: str, candidates: list[int]) -> None
     if candidates:
         for candidate in candidates:
             if candidate['deactivated'] in ['deleted']: # можно также удалить тех, кто 'banned'
+                name = candidate['first_name']
+                last_name = candidate['last_name']
                 try:
                     resp = vk.delete_friend(user_id=candidate['id'])
-                except Exception as e:
-                    print(f'ERROR: {e}')
+                except VKApiError as e:
+                    logging.error(f'При удалении пользователя {name} {last_name} произошла ошибка.\nerror_code: {e.error_code}\nerror_msg: {e.error_msg}')
                 else:
-                    try:
-                        result = resp['response']
-                        if result.get('success') == 1:
-                            name = candidate['first_name']
-                            last_name = candidate['last_name']
-
-                            logging.info(f'Пользователь {name} {last_name} успешно удален из друзей')
-                    
-                    except Exception:
-                        result = resp['error']
-                        error_code = result['error_code']
-                        error_msg = result['error_msg']
-                logging.info(f'При удалении пользователя {name} {last_name} произошла ошибка.\nerror_code: {error_code}\nerror_msg: {error_msg}')
-
+                    result = resp['response']
+                    if result.get('success') == 1:
+                        logging.info(f'Пользователь {name} {last_name} успешно удален из друзей')
     else:
         logging.info(f'Удалено друзей: {len(candidates)}. Забаненные или удаленные пользователи отсутствуют.')
 
@@ -89,10 +83,12 @@ def get_additional_info(access_token: str, user_ids: list[int]) -> list[dict]:
     
     vk = VKApi(access_token=access_token)
     results_add = []
-
-    for user_id in user_ids:
-        res = vk.get_user_info(user_ids=user_id)
-        results_add.append(res['response'][0])
+    try:
+        for user_id in user_ids:
+            res = vk.get_user_info(user_ids=user_id)
+            results_add.append(res['response'][0])
+    except VKApiError as e:
+        logging.error(f'{e}')
 
     friends_add = []
         
@@ -122,11 +118,14 @@ def get_job_places(access_token: str, job_ids: list[int]) -> list[dict]:
     vk = VKApi(access_token=access_token)
     jobs_mapped = []
 
-    for job_id in job_ids:
-        res = vk.get_job_info(job_id=job_id)
-        result = res['response'][0]['name']
-        data = {'job_id': job_id, 'job_place': result}
-        jobs_mapped.append(data)
+    try:
+        for job_id in job_ids:
+            res = vk.get_job_info(job_id=job_id)
+            result = res['response'][0]['name']
+            data = {'job_id': job_id, 'job_place': result}
+            jobs_mapped.append(data)
+    except VKApiError as e:
+        logging.error(f'{e}')
 
     logging.info(f'Получена информация о месте работы друзей. Число записей: {len(jobs_mapped)} штук')
 
