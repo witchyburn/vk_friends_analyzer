@@ -1,33 +1,70 @@
 import requests
+from requests import RequestException
+from enum import Enum
+
+class VKMethodType(Enum):
+    GET = 'get'
+    POST = 'post'
+
+
+class VKApiError(Exception):
+    def __init__(self, error_code: int, error_msg: str, method: str = ''):
+        self.error_code = error_code
+        self.error_msg = error_msg
+        self.method = method
+        super().__init__(f'VKApiError: error_code - {error_code}, error_msg - {error_msg}, method - [{method}]')
 
 class VKApi:
 
     base_url = 'https://api.vk.com/method/'
     requests_limit = 1000
 
-    def __init__(self, access_token):
+    def __init__(self, access_token: str, version: str = '5.131'):
         self.access_token = access_token
-        self.version = '5.131'
+        self.version = version
 
+    def _determine_http_method(self, method:str) -> str:
+        method_type = method.split('.')[-1].lower()
+        if method_type.startswith('get'):
+            return VKMethodType.GET.value
+        elif method_type.startswith(('delete', 'remove', 'set', 'add', 'create')):
+            return VKMethodType.POST.value
+        else:
+            return VKMethodType.GET.value
+        
     def call_method(self, method, params=None) -> dict:
         if params is None:
             params = {}
         
         params.update({'access_token': self.access_token, 'v': self.version})
         
-        metod_type = method.split('.')[-1].lower()
-        if metod_type.startswith('get'):
-            response = requests.get(f'{self.base_url}{method}', params=params)
-        elif metod_type.startswith('delete'):
-            response = requests.post(f'{self.base_url}{method}', params=params)
-        return response.json()
+        http_method = self._determine_http_method(method)
+        url = f'{self.base_url}{method}'
+
+        try:
+            if http_method == VKMethodType.GET.value:
+                response = requests.get(url, params=params)
+            else:
+                response = requests.post(url, params=params)
+
+            data = response.json()
+
+            if 'error' in data:
+                error = data['error']
+                raise VKApiError(error_code=error.get('error_code', 0),
+                                error_msg=error.get('error_msg', 'Unknown error'),
+                                method=method)
+            return data
+        
+        except RequestException as e:
+            raise RequestException(f'Error calling {method}: {str(e)}') from e
     
     def get_user_friends_info(self, user_id: str | int, fields: str = 'sex,bdate,city,education,status,last_seen') -> dict:
         params = {'user_id': user_id, 'fields': fields}
         method = 'friends.get'
         return self.call_method(method, params)
     
-    def get_user_info(self, user_ids: str, fields: str = 'counters,career,relation') -> dict:
+    def get_user_info(self, user_ids: str | int, fields: str = 'counters,career,relation') -> dict:
         params = {'user_ids': user_ids, 'fields': fields}
         method = 'users.get'
         return self.call_method(method, params)
