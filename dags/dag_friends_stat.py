@@ -17,6 +17,8 @@ import tempfile
 import pandas as pd
 import logging
 
+logger = logging.getLogger(__name__)
+
 try:
     access_token = Variable.get('VK_ACCESS_TOKEN')
     user_id = Variable.get('VK_USER_ID')
@@ -92,7 +94,7 @@ def load_data(**context):
     temp_path = context['ti'].xcom_pull(task_ids='transform_data', key='temp_df_path')
     
     if not temp_path or not os.path.exists(temp_path):
-        logging.error("Временный файл не найден")
+        logger.error("Временный файл не найден")
         return
     
     # Восстанавливаем DataFrame
@@ -117,15 +119,15 @@ def load_data(**context):
                     'job_place': VARCHAR(100)
                 }
             )
-            logging.info(f'Успешно загружено {len(df)} записей в БД')
+            logger.info(f'Успешно загружено {len(df)} записей в БД')
             
         except Exception as e:
 
-            logging.error(f'Ошибка при загрузке в БД: {e}')
+            logger.error(f'Ошибка при загрузке в БД: {e}')
 
     if os.path.exists(temp_path):
         os.unlink(temp_path)
-        logging.info(f"Временный файл удален: {temp_path}")
+        logger.info(f"Временный файл удален: {temp_path}")
 
 with DAG(
     dag_id='vk_etl_friends',
