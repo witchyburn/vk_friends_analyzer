@@ -78,6 +78,7 @@ def delete_deactivated_friends(access_token: str, candidates: list[int]) -> None
 
 
 # 3. Получаем дополнительную информацию по каждому другу
+
 def extract_user_info(data: dict) -> dict:
     career_obj = data.get('career', [{}])
     career_obj = [{}] if career_obj == [] else career_obj
@@ -91,21 +92,23 @@ def extract_user_info(data: dict) -> dict:
         'videos': data['counters'].get('videos', 0)
     }
 
-def get_additional_info(access_token: str, user_ids: list[int]) -> list[dict]:
-    
-    vk = VKApi(access_token=access_token)
+def get_user_info(user_id: str | int, vk: VKApi) -> dict:
     try:
-        results_add = [
-            vk.get_user_info(user_ids=user_id)['response'][0]
-            for user_id in user_ids
-        ]        
+        res = vk.get_user_info(user_ids=user_id)
+        return res['response'][0]
     except VKApiError as e:
-        logging.error(f'{e}')
+        logging.error(f'Ошибка для пользователя {user_id}: {e}')
+        return None
 
-    friends_add = [extract_user_info(result) for result in results_add]
-        
+def get_additional_info(access_token: str, user_ids: list[int]) -> list[dict]:
+
+    vk = VKApi(access_token=access_token)
+
+    results_add = list(map(lambda uid: get_user_info(uid, vk), user_ids))
+    valid_results_add = filter(None, results_add)
+    friends_add = [extract_user_info(result) for result in valid_results_add]   
     logging.info(f'Получена доп. информация по каждому другу. Число записей: {len(friends_add)} штук')
-
+    
     return friends_add
 
 
