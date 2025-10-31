@@ -92,7 +92,7 @@ def extract_user_info(data: dict) -> dict:
         'videos': data['counters'].get('videos', 0)
     }
 
-def get_user_info(user_id: str | int, vk: VKApi) -> dict:
+def get_user_info(user_id: str | int, vk: VKApi) -> dict | None:
     try:
         res = vk.get_user_info(user_ids=user_id)
         return res['response'][0]
@@ -107,6 +107,7 @@ def get_additional_info(access_token: str, user_ids: list[int]) -> list[dict]:
     results_add = list(map(lambda uid: get_user_info(uid, vk), user_ids))
     valid_results_add = filter(None, results_add)
     friends_add = [extract_user_info(result) for result in valid_results_add]   
+    
     logging.info(f'Получена доп. информация по каждому другу. Число записей: {len(friends_add)} штук')
     
     return friends_add
@@ -114,18 +115,19 @@ def get_additional_info(access_token: str, user_ids: list[int]) -> list[dict]:
 
 # 4. Получаем названия сообществ - мест работы
 
+def extract_job(job_id: str | int, vk: VKApi) -> tuple | None:
+    try:
+        res = vk.get_job_info(job_id=job_id)
+        return (job_id, res['response'][0]['name'])
+    except VKApiError as e:
+        logging.error(f'Ошибка для job_id {job_id}: {e}')
+        return None
+
 def get_job_places(access_token: str, job_ids: list[int]) -> list[dict]:
     vk = VKApi(access_token=access_token)
-    jobs_mapped = []
-
-    try:
-        for job_id in job_ids:
-            res = vk.get_job_info(job_id=job_id)
-            result = res['response'][0]['name']
-            data = {'job_id': job_id, 'job_place': result}
-            jobs_mapped.append(data)
-    except VKApiError as e:
-        logging.error(f'{e}')
+    jobs = list(map(lambda jid: extract_job(jid, vk), job_ids))
+    valid_jobs = filter(None, jobs)
+    jobs_mapped = [{'job_id': t[0], 'job_place': t[1]} for t in valid_jobs]
 
     logging.info(f'Получена информация о месте работы друзей. Число записей: {len(jobs_mapped)} штук')
 
