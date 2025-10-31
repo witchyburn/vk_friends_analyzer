@@ -78,35 +78,32 @@ def delete_deactivated_friends(access_token: str, candidates: list[int]) -> None
 
 
 # 3. Получаем дополнительную информацию по каждому другу
+def extract_user_info(data: dict) -> dict:
+    career_obj = data.get('career', [{}])
+    career_obj = [{}] if career_obj == [] else career_obj
+    return {
+        'user_id': data['id'],
+        'relation': data.get('relation'),
+        'job_id': career_obj[-1].get('group_id'),
+        'friends': data['counters'].get('friends', 0),
+        'followers': data['counters'].get('followers', 0),
+        'audios': data['counters'].get('audios', 0),
+        'videos': data['counters'].get('videos', 0)
+    }
 
 def get_additional_info(access_token: str, user_ids: list[int]) -> list[dict]:
     
     vk = VKApi(access_token=access_token)
-    results_add = []
     try:
-        for user_id in user_ids:
-            res = vk.get_user_info(user_ids=user_id)
-            results_add.append(res['response'][0])
+        results_add = [
+            vk.get_user_info(user_ids=user_id)['response'][0]
+            for user_id in user_ids
+        ]        
     except VKApiError as e:
         logging.error(f'{e}')
 
-    friends_add = []
+    friends_add = [extract_user_info(result) for result in results_add]
         
-    for result in results_add:
-        data = {}
-        data['user_id'] = result['id']
-        data['relation'] = result.get('relation', None)
-
-        career_obj = result.get('career', [{}])
-        career_obj = [{}] if career_obj == [] else career_obj
-        data['job_id'] = career_obj[-1].get('group_id', None)
-
-        data['friends'] = result['counters'].get('friends', 0)
-        data['followers'] = result['counters'].get('followers', 0)
-        data['audios'] = result['counters'].get('audios', 0)
-        data['videos'] = result['counters'].get('videos', 0)
-        friends_add.append(data)
-
     logging.info(f'Получена доп. информация по каждому другу. Число записей: {len(friends_add)} штук')
 
     return friends_add
