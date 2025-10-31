@@ -3,7 +3,14 @@ from airflow.operators.python import PythonOperator
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.models import Variable
 from sqlalchemy.types import VARCHAR
-from friends_stat import get_general_info, delete_deactivated_friends, get_additional_info, get_job_places, get_total_info, process_total_df, show_long_ago
+from friends_stat import (
+    get_general_info, 
+    delete_deactivated_friends, 
+    get_additional_info, get_job_places, 
+    get_total_info, 
+    process_total_df, 
+    show_long_ago
+)
 from datetime import datetime, timedelta
 import os
 import tempfile
