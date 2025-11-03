@@ -1,6 +1,9 @@
 import requests
 from requests import RequestException
 from enum import Enum
+import logging
+
+logger = logging.getLogger(__name__)
 
 class VKMethodType(Enum):
     GET = 'get'
@@ -22,6 +25,7 @@ class VKApi:
     def __init__(self, access_token: str, version: str = '5.131'):
         self.access_token = access_token
         self.version = version
+        self.logger = logger.getChild('VKApi')
 
     def _determine_http_method(self, method:str) -> str:
         method_type = method.split('.')[-1].lower()
@@ -62,17 +66,28 @@ class VKApi:
     def get_user_friends_info(self, user_id: str | int, fields: str = 'sex,bdate,city,education,status,last_seen') -> dict:
         params = {'user_id': user_id, 'fields': fields}
         method = 'friends.get'
-        return self.call_method(method, params)
+        return self.call_method(method, params)['response']['items']
     
-    def get_user_info(self, user_ids: str | int, fields: str = 'counters,career,relation') -> dict:
+    def get_user_info(self, user_ids: str | int, fields: str = 'counters,career,relation') -> dict | None:
         params = {'user_ids': user_ids, 'fields': fields}
         method = 'users.get'
-        return self.call_method(method, params)
+        try:
+            res = self.call_method(method, params)
+            return res['response'][0]
+        except VKApiError as e:
+            self.logger.error(f'Ошибка для пользователя {user_ids}: {e}')
+            return None
     
-    def get_job_info(self, job_id: str | int) -> dict:
+    def get_job_info(self, job_id: str | int) -> dict | None:
         params = {'group_id': job_id}
         method = 'groups.getById'
-        return self.call_method(method, params)
+        try:
+            res = self.call_method(method, params)
+            #time.sleep(1)
+            return {'job_id': job_id, 'job_place': res['response'][0]['name']}
+        except VKApiError as e:
+            self.logger.error(f'Ошибка для job_id {job_id}: {e}')
+            return None
     
     def delete_friend(self, user_id: str | int) -> dict:
         params = {'user_id': user_id}
